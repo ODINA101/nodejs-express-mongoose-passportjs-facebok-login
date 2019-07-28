@@ -1,7 +1,5 @@
 const express = require('express')
 const app = express();
-const AuthRoute = require('./routes/auth')
-const UsersRoute = require('./routes/users')
 const PORT = 4000;
 const mongoose = require('mongoose');
 const passport = require('passport')
@@ -9,6 +7,26 @@ var bodyParser = require('body-parser')
 const jwt = require('jsonwebtoken')
 var FacebookTokenStrategy = require('passport-facebook-token');
 const User = require('./models/user')
+var jwtPath = require('express-jwt');
+
+
+
+
+//Routes
+
+const AuthRoute = require('./routes/auth')
+const UsersRoute = require('./routes/users')
+const PostsRoute = require('./routes/posts')
+
+
+
+
+app.use(jwtPath({ secret: 'satesto' }).unless({ path: ['/api/auth/fb'] }));
+
+
+
+
+
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: false }))
 
@@ -17,18 +35,14 @@ app.use(bodyParser.json())
 app.use(passport.initialize());
 app.use(passport.session());
 
-passport.serializeUser(function (user, done) {
-    done(null, user);
-});
-
-passport.deserializeUser(function (user, done) {
-    done(null, user);
-});
 passport.use(new FacebookTokenStrategy({
     clientID: "523900844697524",
     clientSecret: "1a779f99cc88ff2b726e80ce6ac96162"
 }, async (accessToken, refreshToken, profile, done) => {
+
+
     let user = await User.findOne({ method: 'fb', facebookId: profile.id });
+
 
     if (user) {
         const token = jwt.sign(user.toJSON(), 'satesto', {
@@ -37,6 +51,9 @@ passport.use(new FacebookTokenStrategy({
         const { iat, exp } = jwt.decode(token);
         // Respond with token
         done(null, { iat, exp, token });
+
+
+
     } else {
         let user = new User({
             facebookId: profile.id,
@@ -73,6 +90,7 @@ mongoose.connect('mongodb://localhost:27017/satestod', { useNewUrlParser: true }
 
 app.use('/api/auth', AuthRoute)
 app.use('/api', UsersRoute)
+app.use('/api', PostsRoute)
 
 app.listen(PORT, () => {
     console.log('server running on PORT ' + PORT)
